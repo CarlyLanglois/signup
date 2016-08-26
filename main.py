@@ -2,6 +2,7 @@ import webapp2
 import re
 
 
+
 # html boilerplate for the top of every page
 page_header = """
 <!DOCTYPE html>
@@ -29,6 +30,11 @@ USER_RE = re.compile(r"^[a-zA-Z0-9_-]{3,20}$")
 def valid_username(username):
     return username and USER_RE.match(username)
 
+# define a valid password
+PASS_RE = re.compile(r"^.{3,20}$")
+def valid_password(password):
+    return password and PASS_RE.match(password)
+
 
 class MainHandler(webapp2.RequestHandler):
     """ Handles requests coming in to '/' (the root of our site)
@@ -36,9 +42,15 @@ class MainHandler(webapp2.RequestHandler):
     """
 
     def get(self):
-        # if we have an error, make a <p> to display it
+        # if we have an error, display it
         err = self.request.get("err")
-        err_element = "<p class='err'>" + err + "</p>" if err else ""
+        err_element = "<td class='err'>" + err + "</td>" if err else ""
+
+        err2 = self.request.get("err2")
+        err_element2 = "<td class='err'>" + err2 + "</td>" if err2 else ""
+
+        err3 = self.request.get("err3")
+        err_element3 = "<td class='err'>" + err3 + "</td>" if err3 else ""
 
         username_form = """
         <form action="/welcome" method="post">
@@ -51,29 +63,42 @@ class MainHandler(webapp2.RequestHandler):
                         <td>
                             <input name="username" type="text">
                         </td>
-                        <td class="err">{}</td>
-                    </tr>
+                        {}
+                    </tr>""".format(err_element)
+
+        password_form = """
+            <tr>
+                <td>
+                    <label for="password">Password</label>
+                </td>
+                <td>
+                    <input name="password" type="password">
+                </td>
+                {}
+            </tr>""".format(err_element2)
+
+        verify_form = """
+            <tr>
+                <td>
+                    <label for="verify">Verify</label>
+                </td>
+                <td>
+                    <input name="verify" type="password">
+                </td>
+                {}
+            </tr>
                 </tbody>
             </table>
             <input type="submit">
-        </form>""".format(err_element)
+        </form>""".format(err_element3)
 
 
         # combine all the pieces to build the content of our signup page
-        signup_form = username_form
+        signup_form = username_form + password_form + verify_form
 
         signup_content = page_header + signup_form + page_footer
         self.response.write(signup_content)
 
-
-    def post(self):
-        # look inside the request to figure out what the user typed
-        username = self.request.get("username")
-
-
-
-        # if the user's username is not valid
-        # TODO - invalid username
 
         # if the user's password and password-confirmation do not match
         # TODO - passwords dont match
@@ -90,15 +115,33 @@ class Welcome (webapp2.RequestHandler):
     def post(self):
 
         username = self.request.get("username")
+        password = self.request.get("password")
+        verify = self.request.get("verify")
 
-        if not valid_username(username):
-            name_err = "Please enter a valid username"
-            self.redirect('/?err={}'.format(name_err))
+        name_err = "Please enter a valid username"
+        pass_err = "Please enter a valid password"
+        ver_error = "Passwords don't match"
 
-        #build response content
         welcome_message = "Welcome, " + username + "!"
         welcome_content = page_header + welcome_message + page_footer
-        self.response.write(welcome_content)
+
+        if not valid_username(username):
+            if not valid_password(password):
+                self.redirect('/?err={0}&err2={1}'.format(name_err, pass_err))
+            elif ((valid_password(password)) and (password != verify)):
+                self.redirect('/?err={0}&err3={1}'.format(name_err, ver_error))
+            elif ((valid_password(password)) and (password == verify)):
+                self.redirect('/?err={}'.format(name_err))
+        elif valid_username(username):
+            if not valid_password(password):
+                self.redirect('/?err2={}'.format(pass_err))
+            elif ((valid_password(password)) and (password != verify)):
+                self.redirect('/?err3={}'.format(ver_error))
+            elif ((valid_password(password)) and (password == verify)):
+                self.response.write(welcome_content)
+
+
+
 
 
 app = webapp2.WSGIApplication([
