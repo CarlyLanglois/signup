@@ -2,7 +2,6 @@ import webapp2
 import re
 
 
-
 # html boilerplate for the top of every page
 page_header = """
 <!DOCTYPE html>
@@ -35,12 +34,16 @@ PASS_RE = re.compile(r"^.{3,20}$")
 def valid_password(password):
     return password and PASS_RE.match(password)
 
+#define a valid email
+EMAIL_RE = re.compile(r'^[\S]+@[\S]+\.[\S]+$')
+def valid_email(email):
+    return not email or EMAIL_RE.match(email)
+
 
 class MainHandler(webapp2.RequestHandler):
     """ Handles requests coming in to '/' (the root of our site)
         e.g. www.signup.com/
     """
-
     def get(self):
         # if we have an error, display it
         err = self.request.get("err")
@@ -52,6 +55,9 @@ class MainHandler(webapp2.RequestHandler):
         err3 = self.request.get("err3")
         err_element3 = "<td class='err'>" + err3 + "</td>" if err3 else ""
 
+        err4 = self.request.get("err4")
+        err_element4 = "<td class='err'>" + err4 + "</td>" if err4 else ""
+
         username_form = """
         <form action="/welcome" method="post">
             <table>
@@ -61,7 +67,7 @@ class MainHandler(webapp2.RequestHandler):
                             <label for="username">Username</label>
                         </td>
                         <td>
-                            <input name="username" type="text">
+                            <input name="username" type="text" value="%(username)s">
                         </td>
                         {}
                     </tr>""".format(err_element)
@@ -86,25 +92,32 @@ class MainHandler(webapp2.RequestHandler):
                     <input name="verify" type="password">
                 </td>
                 {}
+            </tr>""".format(err_element3)
+
+        email_form = """
+            <tr>
+                <td>
+                    <label for="email">Email</label>
+                </td>
+                <td>
+                    <input name="email" type="email">
+                </td>
+                {}
             </tr>
                 </tbody>
             </table>
             <input type="submit">
-        </form>""".format(err_element3)
+        </form>""".format(err_element4)
 
+        username = self.request.get("username")
 
         # combine all the pieces to build the content of our signup page
-        signup_form = username_form + password_form + verify_form
+        signup_form = username_form + password_form + verify_form + email_form
 
         signup_content = page_header + signup_form + page_footer
-        self.response.write(signup_content)
+    
+        self.response.out.write(signup_content % {"username": username})
 
-
-        # if the user's password and password-confirmation do not match
-        # TODO - passwords dont match
-
-        # if the user provides an email, but it's not a valid email.
-        # TODO - invalid email
 
 
 class Welcome (webapp2.RequestHandler):
@@ -117,28 +130,48 @@ class Welcome (webapp2.RequestHandler):
         username = self.request.get("username")
         password = self.request.get("password")
         verify = self.request.get("verify")
+        email = self.request.get("email")
 
         name_err = "Please enter a valid username"
         pass_err = "Please enter a valid password"
-        ver_error = "Passwords don't match"
+        ver_err = "Passwords don't match"
+        eml_err = "Your email is not valid"
 
         welcome_message = "Welcome, " + username + "!"
         welcome_content = page_header + welcome_message + page_footer
 
         if not valid_username(username):
             if not valid_password(password):
-                self.redirect('/?err={0}&err2={1}'.format(name_err, pass_err))
+                if not valid_email(email):
+                    self.redirect('/?err={0}&err2={1}&err4={2}'.format(name_err, pass_err, eml_err))
+                if valid_email(email):
+                    self.redirect('/?err={0}&err2={1}'.format(name_err, pass_err))
             elif ((valid_password(password)) and (password != verify)):
-                self.redirect('/?err={0}&err3={1}'.format(name_err, ver_error))
+                if not valid_email(email):
+                    self.redirect('/?err={0}&err3={1}&err4={2}'.format(name_err, ver_err, eml_err))
+                if valid_email(email):
+                    self.redirect('/?err={0}&err3={1}'.format(name_err, ver_err))
             elif ((valid_password(password)) and (password == verify)):
-                self.redirect('/?err={}'.format(name_err))
+                if not valid_email(email):
+                    self.redirect('/?err={0}&err4={1}'.format(name_err, eml_err))
+                if valid_email(email):
+                    self.redirect('/?err={}'.format(name_err))
         elif valid_username(username):
             if not valid_password(password):
-                self.redirect('/?err2={}'.format(pass_err))
+                if not valid_email(email):
+                    self.redirect('/?err2={0}&err4={1}'.format(pass_err, eml_err))
+                if valid_email(email):
+                    self.redirect('/?err2={}'.format(pass_err))
             elif ((valid_password(password)) and (password != verify)):
-                self.redirect('/?err3={}'.format(ver_error))
+                if not valid_email(email):
+                    self.redirect('/?err3={0}&err4={1}'.format(ver_err, eml_err))
+                if valid_email(email):
+                    self.redirect('/?err3={}'.format(ver_err))
             elif ((valid_password(password)) and (password == verify)):
-                self.response.write(welcome_content)
+                if not valid_email(email):
+                    self.redirect('/?err4={}'.format(eml_err))
+                if valid_email(email):
+                    self.response.write(welcome_content)
 
 
 
